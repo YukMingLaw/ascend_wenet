@@ -84,33 +84,25 @@ int Decoder::Process(EncoderOutData& _encoder_out_data, std::vector<std::pair<do
 
     aclrtMemcpy(inputBuffers[0], inputSizes[0], _encoder_out_data.encoder_out.data, inputSizes[0], ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(inputBuffers[1], inputSizes[1], _encoder_out_data.encoder_out_lens.data, inputSizes[1], ACL_MEMCPY_HOST_TO_DEVICE);
+
     int64_t* ptr_hyps_pad_sos_eos = (int64_t*)malloc(inputSizes[2]);
     memset(ptr_hyps_pad_sos_eos, 0, inputSizes[2]);
     for(int i=0; i < ctc_beam_serach_result.size(); i++)
     {
         ptr_hyps_pad_sos_eos[i * max_seq_num + 0] = sos_eos_value;
-        int ctc_beam_serach_result_len = max_seq_num - 2;
-        if(ctc_beam_serach_result[i].second.size() < max_seq_num)
-        {
-            ctc_beam_serach_result_len = ctc_beam_serach_result[i].second.size();
-        }
-        for(int k=0; k < ctc_beam_serach_result_len; k++)
+        for(int k=0; k < ctc_beam_serach_result[i].second.size(); k++)
         {
             ptr_hyps_pad_sos_eos[i * max_seq_num + k + 1] = (int64_t)ctc_beam_serach_result[i].second[k];
         }
-        int cur_seq_len = ctc_beam_serach_result_len;
+        int cur_seq_len = ctc_beam_serach_result[i].second.size();
         ptr_hyps_pad_sos_eos[i * max_seq_num + cur_seq_len + 2] = sos_eos_value;
     }
     
+
     vector<int> hyps_lens_sos;
     for(int i=0; i<ctc_beam_serach_result.size(); i++)
     {
-        int ctc_beam_serach_result_len = max_seq_num - 2;
-        if(ctc_beam_serach_result[i].second.size() < max_seq_num )
-        {
-            ctc_beam_serach_result_len = ctc_beam_serach_result[i].second.size();
-        }
-        hyps_lens_sos.push_back((int)ctc_beam_serach_result_len + 1);
+        hyps_lens_sos.push_back((int)ctc_beam_serach_result[i].second.size() + 1);
     }
 
     int64_t* ptr_r_hyps_pad_sos_eos = (int64_t*)malloc(inputSizes[4]);
@@ -119,22 +111,17 @@ int Decoder::Process(EncoderOutData& _encoder_out_data, std::vector<std::pair<do
     {
         ptr_r_hyps_pad_sos_eos[i * max_seq_num + 0] = sos_eos_value;
         reverse(ctc_beam_serach_result[i].second.begin(), ctc_beam_serach_result[i].second.end());
-        int ctc_beam_serach_result_len = max_seq_num - 2;
-        if(ctc_beam_serach_result[i].second.size() < max_seq_num )
-        {
-            ctc_beam_serach_result_len = ctc_beam_serach_result[i].second.size();
-        }
-        for(int k=0; k < ctc_beam_serach_result_len; k++)
+        for(int k=0; k < ctc_beam_serach_result[i].second.size(); k++)
         {
             ptr_r_hyps_pad_sos_eos[i * max_seq_num + k + 1] = (int64_t)ctc_beam_serach_result[i].second[k];
         }
-        int cur_seq_len = ctc_beam_serach_result_len;
+        int cur_seq_len = ctc_beam_serach_result[i].second.size();
         ptr_r_hyps_pad_sos_eos[i * max_seq_num + cur_seq_len + 2] = sos_eos_value;
     }
     
 
     vector<float> ctc_score;
-    for(int i=0; i < max_seq_num - 2; i++)
+    for(int i=0; i<ctc_beam_serach_result.size(); i++)
     {
         ctc_score.push_back((float)ctc_beam_serach_result[i].first);
     }
